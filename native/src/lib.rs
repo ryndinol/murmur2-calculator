@@ -1,61 +1,48 @@
-#[macro_use]
 extern crate neon;
 extern crate num_bigint;
 extern crate num_traits;
+extern crate murmurhash32;
 
 use neon::prelude::*;
 use neon::register_module;
-use num_bigint::BigUint;
-use num_traits::{One, Zero};
-use std::mem::replace;
+use murmurhash32::murmurhash2;
+use std::fs::File;
+use std::io::Read;
 
-fn compute(n: usize) -> BigUint {
-    let mut f0: BigUint = Zero::zero();
-    let mut f1: BigUint = One::one();
-    for _ in 0..n {
-        let f2 = f0 + &f1;
-        // This is a low cost way of swapping f0 with f1 and f1 with f2.
-        f0 = replace(&mut f1, f2);
-    }
-    f0
+struct MurmurTask {
+    argument: String,
 }
 
-fn fibonacci_sync(mut cx: FunctionContext) -> JsResult<JsString> {
-    let n = cx.argument::<JsNumber>(0)?.value() as usize;
-    let big = compute(n);
-    Ok(cx.string(big.to_str_radix(10)))
-}
+impl Task for MurmurTask {
+    type Output = u32;
+    type Error = String;
+    type JsEvent = JsNumber;
 
-struct FibonacciTask {
-    argument: usize,
-}
-
-impl Task for FibonacciTask {
-    type Output = BigUint;
-    type Error = ();
-    type JsEvent = JsString;
-
-    fn perform(&self) -> Result<BigUint, ()> {
-        Ok(compute(self.argument))
+    fn perform(&self) -> Result<u32, String> {
+        let mut file = File::open(&self.argument).expect("Error opening file");
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).expect("Error opening file");
+        buffer.retain(|&x| (x != 9 && x != 10 && x != 13 && x != 32));
+        let d: &[u8] = buffer.as_ref();
+        let murmur : u32 = murmurhash2(d);
+        Ok(murmur)
     }
 
-    fn complete(self, mut cx: TaskContext, result: Result<BigUint, ()>) -> JsResult<JsString> {
-        Ok(cx.string(result.unwrap().to_str_radix(10)))
+    fn complete(self, mut cx: TaskContext, result: Result<u32, String>) -> JsResult<JsNumber> {
+        Ok(cx.number(result.unwrap()))
     }
 }
 
-fn fibonacci_async(mut cx: FunctionContext) -> JsResult<JsUndefined> {
-    let n = cx.argument::<JsNumber>(0)?.value() as usize;
+fn murmur2_async(mut cx: FunctionContext) -> JsResult<JsUndefined> {
+    let n = cx.argument::<JsString>(0)?.value() as String;
     let cb = cx.argument::<JsFunction>(1)?;
-
-    let task = FibonacciTask { argument: n };
+    let task = MurmurTask { argument: n };
+    // println!("{}", task);
     task.schedule(cb);
-
     Ok(cx.undefined())
 }
 
 register_module!(mut m, {
-    m.export_function("fibonacciSync", fibonacci_sync)?;
-    m.export_function("fibonacci", fibonacci_async)?;
+    m.export_function("murmur2", murmur2_async)?;
     Ok(())
 });

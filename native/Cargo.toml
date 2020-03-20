@@ -17,3 +17,4 @@ neon-build = "0.3.3"
 neon = "0.3.3"
 num-bigint = "0.2"
 num-traits = "0.2"
+murmurhash32 = { git = "https://github.com/gorilla-devs/murmurhash32.git" }
