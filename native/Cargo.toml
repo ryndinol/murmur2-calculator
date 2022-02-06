@@ -11,10 +11,10 @@ name = "murmur2_calculator"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-neon-build = "0.3.3"
+neon-build = "0.9.1"
 
 [dependencies]
-neon = "0.3.3"
+neon = "0.9.1"
 num-bigint = "0.2"
 num-traits = "0.2"
 murmurhash32 = { git = "https://github.com/gorilla-devs/murmurhash32.git" }
